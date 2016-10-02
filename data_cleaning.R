@@ -1,11 +1,9 @@
-setwd("C:/Users/p054009/Documents/GitHub/Kaggle_House_Prices_AGT")
+setwd("C:/Users/tiago_000/Documents/GitHub/Kaggle_House_Prices_AGT")
 
+library(caret)
 
-library(ggplot2)
-
-
-train <- read.csv("./data/train.csv")
-test <- read.csv("./data/test.csv")
+train <- read.csv("./data/train.csv", stringsAsFactors = FALSE)
+test <- read.csv("./data/test.csv", stringsAsFactors = FALSE)
 
 summary(train)
 str(train)
@@ -25,6 +23,11 @@ nas
 
 train <- train[,names(nas)]
 test <- test[,names(nas)[-length(nas)]]
+
+# Remove duplicates
+###########################################
+train <- unique(train)
+
 
 # NAs treatment
 ###########################################
@@ -103,11 +106,14 @@ nas2 <- apply(test, 2,function(x)sum(is.na(x))/length(x))
 nas2[nas2 >0]
 
 # Imputation test
-test[is.na(test_num$BsmtFinSF1), c("BsmtFinSF1" ,  "BsmtFinSF2",   "BsmtUnfSF",  "TotalBsmtSF", "BsmtFullBath",  "BsmtHalfBath")] <- 0
-test[is.na(test_num$BsmtFullBath), c("BsmtFullBath","BsmtHalfBath")] <- 0
+test[is.na(test$BsmtFinSF1), c("BsmtFinSF1" ,  "BsmtFinSF2",   "BsmtUnfSF",  "TotalBsmtSF", "BsmtFullBath",  "BsmtHalfBath")] <- 0
+test[is.na(test$BsmtFullBath), c("BsmtFullBath","BsmtHalfBath")] <- 0
 
-train <- train[, -nearZeroVar(train)]
-test <- test[, -colnames(train[,nearZeroVar(train)])]
+
+
+nz <- colnames(train[,nearZeroVar(train)])
+train <- train[, !names(train) %in% nz]
+test <- test[, !names(test) %in% nz]
 
 save(train, file = "./files/train1.Rda")
 save(test, file = "./files/test1.Rda")
