@@ -72,9 +72,9 @@ test$BsmtFinType2[is.na(test$BsmtFinType2)] <- "None"
 
 
 head(train$Electrical)
-train$Electrical[is.na(train$Electrical)] <- "None"
+train$Electrical[is.na(train$Electrical)] <- "SBrkr"
 
-test$Electrical[is.na(test$Electrical)] <- "None"
+test$Electrical[is.na(test$Electrical)] <- "SBrkr"
 
 
 head(train$GarageType)
@@ -114,6 +114,9 @@ test[is.na(test$BsmtFullBath), c("BsmtFullBath","BsmtHalfBath")] <- 0
 nz <- colnames(train[,nearZeroVar(train)])
 train <- train[, !names(train) %in% nz]
 test <- test[, !names(test) %in% nz]
+
+
+train <- train[train$GrLivArea < 4000,]
 
 save(train, file = "./files/train1.Rda")
 save(test, file = "./files/test1.Rda")
