@@ -93,8 +93,8 @@ head(train$GarageCond)
 train$GarageCond[is.na(train$GarageCond)] <- "None"
 test$GarageCond[is.na(test$GarageCond)] <- "None"
 head(train$GarageYrBlt)
-train$GarageYrBlt[is.na(train$GarageYrBlt)] <- median(train$GarageYrBlt, na.rm = TRUE)
-test$GarageYrBlt[is.na(test$GarageYrBlt)] <- median(test$GarageYrBlt, na.rm = TRUE)
+train$GarageYrBlt[is.na(train$GarageYrBlt)] <- min(train$GarageYrBlt, na.rm = TRUE)
+test$GarageYrBlt[is.na(test$GarageYrBlt)] <- min(test$GarageYrBlt, na.rm = TRUE)
 head(train$GarageFinish)
 train$GarageFinish[is.na(train$GarageFinish)] <- "None"
 test$GarageFinish[is.na(test$GarageFinish)] <- "None"
@@ -108,6 +108,27 @@ nas2[nas2 >0]
 # Imputation test
 test[is.na(test$BsmtFinSF1), c("BsmtFinSF1" ,  "BsmtFinSF2",   "BsmtUnfSF",  "TotalBsmtSF", "BsmtFullBath",  "BsmtHalfBath")] <- 0
 test[is.na(test$BsmtFullBath), c("BsmtFullBath","BsmtHalfBath")] <- 0
+
+table(test$Fireplaces, test$FireplaceQu, exclude = NULL)
+
+aux <- table(train$Neighborhood, train$MSZoning)
+aux <- data.frame(neighbourhood = rownames(aux), cols = colnames(aux)[apply(aux,1,which.max)])
+test[is.na(test$MSZoning), "MSZoning"] <-  sapply(test[is.na(test$MSZoning), "Neighborhood"], function(x)aux[aux$neighbourhood == x,"cols"])
+
+aux <- table(train$Neighborhood, train$Exterior1st)
+aux <- data.frame(Neighborhood = rownames(aux), cols = colnames(aux)[apply(aux,1,which.max)])
+test[is.na(test$Exterior1st), "Exterior1st"] <-  sapply(test[is.na(test$Exterior1st), "Neighborhood"], function(x)aux[aux$Neighborhood == x,"cols"])
+
+aux <- table(train$Neighborhood, train$Exterior2nd)
+aux <- data.frame(Neighborhood = rownames(aux), cols = colnames(aux)[apply(aux,1,which.max)])
+test[is.na(test$Exterior2nd), "Exterior2nd"] <-  sapply(test[is.na(test$Exterior2nd), "Neighborhood"], function(x)aux[aux$Neighborhood == x,"cols"])
+
+table(train$SaleCondition, train$SaleType)
+test[is.na(test$SaleType), "SaleType"] <- "WD" 
+
+table(test$OverallQual, test$KitchenQual, exclude = NULL)
+test[is.na(test$KitchenQual), "KitchenQual"] <-  "TA"
+
 
 
 

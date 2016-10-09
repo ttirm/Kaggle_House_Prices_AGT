@@ -372,3 +372,9 @@ train_date$SalePrice <- train$SalePrice
 
 ggplot(data=train_date, aes(x= MoSold, y = SalePrice)) + 
     geom_bar(position='dodge',stat = "summary", fun.y = "length") 
+
+
+
+train_exterior$SalePrice <- train$SalePrice
+ggplot(data=train_exterior, aes(x= ExterQual-ExterCond, y = SalePrice)) + 
+    geom_point() 

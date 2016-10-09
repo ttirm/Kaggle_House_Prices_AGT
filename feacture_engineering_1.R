@@ -262,3 +262,18 @@ summary(fit_t1)
 
 
 fit2 <-train(SalePrice~., data = train2, method = "rf")
+
+aux <- table(train$Neighborhood, train$MSZoning)
+aux <- data.frame(neighbourhood = rownames(aux), cols = colnames(aux)[apply(aux,1,which.max)])
+testw <- test
+testw[is.na(testw$MSZoning), "MSZoning"] <-  sapply(testw[is.na(testw$MSZoning), "Neighborhood"], function(x)aux[aux$neighbourhood == x,"cols"])
+
+aux <- table(train$Neighborhood, train$Exterior1st)
+aux <- data.frame(Exterior2nd = rownames(aux), cols = colnames(aux)[apply(aux,1,which.max)])
+test[is.na(test$Exterior1st), "Exterior1st"] <-  sapply(test[is.na(test$Exterior1st), "Exterior2nd"], function(x)aux[aux$Exterior2nd == x,"cols"])
+
+hist(train$LotFrontage)
+ggplot(data = train, aes(x = factor(GarageYrBlt), y = SalePrice))+
+    geom_point()
+
+
