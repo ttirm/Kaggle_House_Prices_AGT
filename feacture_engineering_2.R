@@ -107,10 +107,6 @@ test_basement <- sapply(test_basement, as.numeric)
 train_tot <- cbind(train_tot, train_basement)
 test_tot <- cbind(test_tot, test_basement)
 
-basement.pca <- prcomp(train_basement,
-                       center = TRUE,
-                       scale. = TRUE)
-
 
 train_tot <- data.frame(train_tot)
 test_tot <- data.frame(test_tot)
