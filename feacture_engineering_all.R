@@ -111,11 +111,20 @@ num <- data[, sapply(data, is.numeric)]
 names(num)
 num <- num[,!(names(num) %in% c("Id", "MSSubClass", "MoSold", "YrSold", "age", "epoch", "GarageYrBlt", "YearBuilt", "YearRemodAdd"))]
 num <- num[, sapply(num, function(x) {range(x)[2]-range(x)[1]>30})]
-num_col <- sapply(names(num), function(x) paste0(x, "_2"))
-num <- data.frame(sapply(num, function(x) x^2))
-names(num) <- num_col
-data <- cbind(data,num)
 
+num2 <- num
+num2_col <- sapply(names(num2), function(x) paste0(x, "_2"))
+num2 <- data.frame(sapply(num2, function(x) x^2))
+names(num2) <- num2_col
+
+num3 <- num
+num3_col <- sapply(names(num3), function(x) paste0(x, "_2"))
+num3 <- data.frame(sapply(num3, function(x) x^3))
+names(num3) <- num3_col
+
+
+data <- cbind(data,num2)
+data <- cbind(data,num3)
 
 data$remodeled <- ifelse(data$YearRemodAdd-data$YearBuilt > 0, 1, 0)
 data$age <- ifelse(data$YearRemodAdd-data$YearBuilt > 0, 
@@ -140,6 +149,8 @@ data$Fireplaces <- ifelse(data$Fireplaces > 1, 2, data$Fireplaces)
 
 data$bathRoomRel <-  data$TotRmsAbvGrd- data$HalfBath+data$FullBath
 
+data$space <- data$GrLivArea - data$X1stFlrSF -  data$X2ndFlrSF
+    
 
 
 data <- data[, !(names(data) %in% c("GarageYrBlt", "YearBuilt", "YearRemodAdd", 

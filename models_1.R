@@ -1,15 +1,23 @@
 
 
 set.seed(1904)
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+seed <- 7
+metric <- "RMSE"
+fit2 <-train(SalePrice~., data = train_tot, method = "rf", metric=metric, trControl=control)
 
-fit2 <-train(SalePrice~., data = train2, method = "rf")
+nas2 <- apply(train_tot, 2,function(x)sum(is.na(x))/length(x))
+nas2[nas2 >0]
+
 
 fit_t3 <- train(SalePrice~., data = train_tot, method = "lm", preProcess=c("center","scale","pca"), 
-                trControl = trainControl(method = "cv", preProcOptions = list(thresh = 0.95)))
+                trControl = trainControl(method = "cv"))
 summary(fit_t3)
 
+lm_pred_t <- predict(fit_t3, train_tot)
+lm_pred <- predict(fit_t3, test_tot)
 
-res <- predict(fit_t3, test_tot)
+rf_pred <- predict(fit2, test_tot)
 
 submission <- data.frame(Id = test$Id, SalePrice = (exp(res)-1))
 write.csv(submission, "./predictions/submission_pca_1.csv", row.names=FALSE)
@@ -17,67 +25,92 @@ write.csv(submission, "./predictions/submission_pca_1.csv", row.names=FALSE)
 
 #xgboost
 ##################################################################################
-cv.ctrl <- trainControl(method = "repeatedcv", repeats = 1,number = 3)
 
-xgb.grid <- expand.grid(nrounds = 500,
-                        max_depth = seq(6,10),
-                        eta = c(0.01,0.3, 1),
-                        gamma = c(0.0, 0.2, 1),
-                        colsample_bytree = c(0.5,0.8, 1),
-                        min_child_weight = 1     #default=1
-)
+# cv.ctrl <- trainControl(method = "repeatedcv", repeats = 1,number = 3)
+# 
+# xgb.grid <- expand.grid(nrounds = 500,
+#                         max_depth = c(8, 10),
+#                         eta = c(0.01,0.025),
+#                         gamma = c(0.0, 0.1, 0.2),
+#                         colsample_bytree = c(0.4,0.5),
+#                         min_child_weight = 1     #default=1
+# )
+# 
+# xgb_tune <-train(SalePrice ~.,
+#                  data=train_tot,
+#                  method="xgbTree",
+#                  metric = "RMSE",
+#                  #trControl=cv.ctrl,
+#                  tuneGrid=xgb.grid
+# )
 
-xgb_tune <-train(SalePrice ~.,
-                 data=train_tot,
-                 method="xgbTree",
-                 metric = "RMSE",
-                 trControl=cv.ctrl,
-                 tuneGrid=xgb.grid
-)
+
+train_x <- train_tot[, !(names(train_tot) %in% c("Id", "SalePrice"))]
 
 
 
 y_train <- train_tot$SalePrice
 
-xgb_train <- xgb.DMatrix(model.matrix(~., data = train_tot[,-train_tot$SalePrice]),
+#y_test <- train_tot$SalePrice
+
+
+xgb_train <- xgb.DMatrix(model.matrix(~., data = train_x),
                          label=y_train, missing=NA)
 
-xgb_test <- xgb.DMatrix(model.matrix(~., data = test_tot),
-                        missing=NA)
+
+#All
+##############################################################################################################
+history <- xgb.cv(data = xgb_train, nround=800, nthread = 6, nfold = 10, metrics=list("rmse"),
+                  max.depth =6, eta = 0.021, gamma = 0.025, colsample_bytree = 0.2,  objective = "reg:linear")
+
+#Linear
+##############################################################################################################
+history <- xgb.cv(data = xgb_train, nround=800, nthread = 6, nfold = 10, metrics=list("rmse"),
+                  max.depth =6, eta = 0.025, gamma = 0.023, colsample_bytree = 0.2,  objective = "reg:linear")
+
 
 param<-list(
     objective = "reg:linear",
     eval_metric = "rmse",
     booster = "gbtree",
-    max_depth = 8,
-    eta = 0.123,
-    gamma = 0.0385, 
-    subsample = 0.734,
-    colsample_bytree = 0.512
+    max_depth = 6,
+    eta = 0.021,
+    gamma = 0.025, 
+    colsample_bytree = 0.2
+    #,
+    #min_child_weight=1
 )
 
 Training <-
     xgb.train(params = param,
               data = xgb_train,
-              nrounds = 600,
+              nrounds = 1000,
               watchlist = list(train = xgb_train),
               verbose = TRUE,
               print_every_n = 50,
               nthread = 6)
 
-Submit<- predict(Training, newdata=xgb_test)
-Submit<-data.frame(Id= test$Id, SalePrice= (exp(Submit)-1))
+
+xgb_test_t <- xgb.DMatrix(model.matrix(~., data = test_x),
+                        missing=NA)
+xgb_pred_t <- predict(Training,newdata= xgb_test_t)
+# RMSE(y_test,xgb_pred_t)
+
+xgb_test <- xgb.DMatrix(model.matrix(~., data = test_tot[,-1]),
+                        missing=NA)
+
+xgb_pred <- predict(Training, newdata=xgb_test)
+Submit <- data.frame(Id= test$Id, SalePrice= (exp(xgb_pred)-1))
 write.csv(Submit, "./predictions/submission_xgboost2.csv", row.names=FALSE)
 
-submission <- data.frame(Id = test$Id, SalePrice = (exp(Submit)-1)*0.5+(exp(res)-1)*0.5)
-write.csv(submission, "./predictions/submission_ens_1.csv", row.names=FALSE)
+
 
 
 # Ridge Regression
 ##########################################################################################
 CARET.TRAIN.CTRL <- trainControl(method="repeatedcv",
-                                 number=5,
-                                 repeats=5,
+                                 number=10,
+                                 repeats=10,
                                  verboseIter=FALSE)
 
 lambdas <- seq(1,0,-0.001)
@@ -90,17 +123,22 @@ model_ridge <- train(SalePrice ~ .,
                      method="glmnet",
                      metric="RMSE",
                      maximize=FALSE,
+                     
                      trControl=CARET.TRAIN.CTRL,
                      tuneGrid=expand.grid(alpha=0, # Ridge regression
                                           lambda=lambdas))
+
 
 ggplot(data=filter(model_ridge$result,RMSE<0.14)) +
     geom_line(aes(x=lambda,y=RMSE))
 
 mean(model_ridge$resample$RMSE)
 
-preds <- exp(predict(model_ridge,newdata= test_tot)) - 1
-Submit<-data.frame(Id= test$Id, SalePrice= preds)
+ridge_pred_t <- predict(model_ridge,newdata= train_tot)
+
+ridge_pred <- predict(model_ridge,newdata= test_tot)
+
+Submit<-data.frame(Id= test$Id, SalePrice= ridge_pred)
 write.csv(Submit, "./predictions/submission_ridge1.csv", row.names=FALSE)
 
 newx = data.matrix(test_tot)
@@ -110,7 +148,7 @@ Submit<-data.frame(Id= test$Id, SalePrice= preds)
 write.csv(Submit, "./predictions/submission_lasso1.csv", row.names=FALSE)
 
 
-#Lass
+#Lasso
 ##########################################################################################
 set.seed(123)  # for reproducibility
 model_lasso <- train(SalePrice ~ .,
@@ -129,11 +167,259 @@ ggplot(data=filter(model_lasso$result,RMSE<0.14)) +
 mean(model_lasso$resample$RMSE)
 
 
-preds <- exp(predict(model_lasso,newdata= test_tot)) - 1
-Submit<-data.frame(Id= test$Id, SalePrice= preds)
+lasso_pred_t <- predict(model_lasso,newdata= train_tot)
+
+lasso_pred <- predict(model_lasso,newdata= test_tot)
+
+
+res <- (exp(lasso_pred)-1)
+res <- (exp(lasso_pred)-1)*0.7+(exp(ridge_pred)-1)*0.3
+Submit<-data.frame(Id= test$Id, SalePrice= res)
+write.csv(Submit, "./predictions/submission_ensembled_4.csv", row.names=FALSE)
 write.csv(Submit, "./predictions/submission_lasso1.csv", row.names=FALSE)
 
-newx = data.matrix(test_tot)
-preds <- exp(predict(model_lasso,newx=newx)) - 1
-Submit<-data.frame(Id= test$Id, SalePrice= preds)
+#nnet
+##########################################################################################
+
+set.seed(123)  # for reproducibility
+model_nnet <- train(SalePrice ~ .,
+                    data = train_tot,
+                    method="nnet",
+                    metric="RMSE",
+                    maximize=FALSE,
+                    trControl=CARET.TRAIN.CTRL)
+
+
+
+nnet_pred <- predict(model_nnet,newdata= test_tot)
+
+
+res <- (exp(lasso_pred)-1)*0.7+(exp(ridge_pred)-1)*0.3
+Submit<-data.frame(Id= test$Id, SalePrice= res)
+write.csv(Submit, "./predictions/submission_ensembled_3.csv", row.names=FALSE)
 write.csv(Submit, "./predictions/submission_lasso1.csv", row.names=FALSE)
+
+#Ensemble level 1 - RF
+##########################################################################################
+
+train_l2 <- data.frame(cbind(xgb = xgb_pred_t, lasso = lasso_pred_t, SalePrice = train_tot$SalePrice))
+test_l2 <- data.frame(cbind(xgb = xgb_pred, lasso = lasso_pred))
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+seed <- 7
+metric <- "RMSE"
+fit2 <-train(SalePrice~., data = train_l2, method = "rf", metric=metric, trControl=control)
+rf_pred <- predict(fit2, test_l2)
+res <- (exp(rf_pred)-1)
+submission <- data.frame(Id = test$Id, SalePrice = res)
+write.csv(submission, "./predictions/submission_ensembled_7.csv", row.names=FALSE)
+
+
+
+#Ensemble xgboost
+##########################################################################################
+
+train_tot1 <- train_tot
+train_tot1$mdiff <- (exp(xgb_pred_t)-1)- (exp(lasso_pred_t)-1)
+test_tot1 <- test_tot
+test_tot1$mdiff <-(exp(xgb_pred)-1)- (exp(lasso_pred)-1)
+
+train_x <- train_tot1[, !(names(train_tot1) %in% c("Id", "SalePrice"))]
+
+
+y_train <- train_tot$SalePrice
+
+
+xgb_train <- xgb.DMatrix(model.matrix(~., data = train_x),
+                         label=y_train, missing=NA)
+
+
+history <- xgb.cv(data = xgb_train, nround=500, nthread = 6, nfold = 10, metrics=list("rmse"),
+                  max.depth =6, eta = 0.025, gamma = 0.022, colsample_bytree = 0.25,  objective = "reg:linear")
+
+
+param<-list(
+    objective = "reg:linear",
+    eval_metric = "rmse",
+    booster = "gbtree",
+    max_depth = 6,
+    eta = 0.025,
+    gamma = 0.022, 
+    colsample_bytree = 0.25,
+    min_child_weight=1
+)
+
+Training1 <-
+    xgb.train(params = param,
+              data = xgb_train,
+              nrounds = 600,
+              watchlist = list(train = xgb_train),
+              verbose = TRUE,
+              print_every_n = 50,
+              nthread = 6)
+
+xgb_test1 <- xgb.DMatrix(model.matrix(~., data = test_tot1[, -1]),
+                         missing=NA)
+
+xgb_pred1 <- predict(Training1, newdata=xgb_test1)
+
+
+#tests
+##########################################################################################
+
+
+predictions <-  data.frame(lasso = (exp(lasso_pred)-1), ridge = (exp(ridge_pred)-1))
+ggplot(data = predictions, aes(x = ridge, y = lasso))+
+    geom_point()
+
+predictions <-  data.frame(lasso = (exp(lasso_pred)-1), lm = (exp(lm_pred)-1))
+ggplot(data = predictions, aes(x = lm, y = lasso))+
+    geom_point()
+
+predictions <-  data.frame(lasso = (exp(lasso_pred)-1), xgb = (exp(xgb_pred)-1))
+ggplot(data = predictions, aes(x = xgb, y = lasso))+
+    geom_point() + xlim(0, 1800000) + ylim(0, 1800000)
+
+predictions <-  data.frame(lasso = (exp(lasso_pred)-1), rf = (exp(rf_pred)-1))
+ggplot(data = predictions, aes(x = rf, y = lasso))+
+    geom_point() + xlim(0, 1800000) + ylim(0, 1800000)
+
+train_l2 <- data.frame(cbind(xgb = xgb_pred_t, lasso = lasso_pred_t, SalePrice = train_tot$SalePrice))
+test_l2 <- data.frame(cbind(xgb = xgb_pred, lasso = lasso_pred))
+
+train_l2 <- train_l2[, !(names(train_l2) %in% c("SalePrice"))]
+
+
+
+y_train <- train_tot$SalePrice
+
+#y_test <- train_tot$SalePrice
+
+
+xgb_train <- xgb.DMatrix(model.matrix(~., data = train_x),
+                         label=y_train, missing=NA)
+
+
+
+history <- xgb.cv(data = xgb_train, nround=500, nthread = 6, nfold = 10, metrics=list("rmse"),
+                  max.depth =6, eta = 0.025, gamma = 0.022, colsample_bytree = 0.25,  objective = "reg:linear")
+
+
+param<-list(
+    objective = "reg:linear",
+    eval_metric = "rmse",
+    booster = "gbtree",
+    max_depth = 6,
+    eta = 0.025,
+    gamma = 0.022, 
+    colsample_bytree = 0.25
+    #,
+    #min_child_weight=1
+)
+
+Training1 <-
+    xgb.train(params = param,
+              data = xgb_train,
+              nrounds = 600,
+              watchlist = list(train = xgb_train),
+              verbose = TRUE,
+              print_every_n = 50,
+              nthread = 6)
+
+xgb_test1 <- xgb.DMatrix(model.matrix(~., data = test_l2),
+                         missing=NA)
+
+xgb_pred1 <- predict(Training1, newdata=xgb_test1)
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+seed <- 7
+metric <- "RMSE"
+fit2 <-train(SalePrice~., data = train_l2, method = "rf", metric=metric, trControl=control)
+rf_pred <- predict(fit2, test_l2)
+res <- (exp(rf_pred)-1)
+submission <- data.frame(Id = test$Id, SalePrice = res)
+write.csv(submission, "./predictions/submission_ensembled_7.csv", row.names=FALSE)
+
+
+train_l1 <- data.frame(cbind(lm = lm_pred_t, xgb = xgb_pred_t, ridge = ridge_pred_t, lasso = lasso_pred_t))
+test_l1 <- data.frame(cbind(lm = lm_pred, xgb = xgb_pred, ridge = ridge_pred, lasso = lasso_pred))
+
+y_train <- train_tot$SalePrice
+
+xgb_train <- xgb.DMatrix(model.matrix(~., data = train_l1),
+                         label=y_train, missing=NA)
+
+xgb_test <- xgb.DMatrix(model.matrix(~., data = test_l1),
+                        missing=NA)
+
+param<-list(
+    objective = "reg:linear",
+    eval_metric = "rmse",
+    booster = "gbtree",
+    max_depth = 8,
+    eta = 0.123,
+    gamma = 0.0385, 
+    subsample = 0.734,
+    colsample_bytree = 0.512
+)
+
+Training_t <-
+    xgb.train(params = param,
+              data = xgb_train,
+              nrounds = 600,
+              watchlist = list(train = xgb_train),
+              verbose = TRUE,
+              print_every_n = 50,
+              nthread = 6)
+
+
+
+Submit <- predict(Training_t, newdata=xgb_test)
+Submit<-data.frame(Id= test$Id, SalePrice= (exp(Submit)-1))
+write.csv(Submit, "./predictions/submission_ensembled_2.csv", row.names=FALSE)
+
+
+test$GrLivArea
+boxplot(log(test$GrLivArea+1))
+
+ggplot(data = train, aes(x = (LotArea)^(1/LotArea), y = SalePrice))+
+    geom_point()
+
+names(train)
+
+train[train$GrLivArea > 3000 & train$SalePrice > 4e+05,]
+
+ggplot(data = train, aes(x = log(Fireplace+1), y = log(SalePrice+1)))+
+    geom_point()
+
+ggplot(data = train, aes(x = as.numeric(factor(train$area)), y = SalePrice))+
+    geom_point()
+
+
+train$area <- cut(train$GrLivArea,unique(quantile(train$GrLivArea)),include.lowest=TRUE)
+factor(train$area)
+test_int$KitchenQual <- as.numeric(factor(train$area))
+test_int$KitchenQual <- as.numeric(test_int$KitchenQual)
+
+ggplot(data = train, aes(x = log(GrLivArea+1), y = (log(GarageArea)-1)))+
+    geom_point()
+
+ggplot(data = predictions, aes(x = ridge, y = lasso))+
+    geom_point()
+
+
+
+head(train[,sapply(train, is.numeric)],10)
+
+train_area <- train[,sapply(names(train), function(x)grepl("Area", x))]
+train_area <- sapply(train_area, function(x)log(x+1))
+head(train_area)
+train_tot[, names(train_area)] <- train_area
+hist(train$age)
+
+
+
+test_t <- test
+test_t$SalePrice <- (exp(ridge_pred)-1)
+ggplot(data = train, aes(x = GrLivArea, y = SalePrice))+
+    geom_point()

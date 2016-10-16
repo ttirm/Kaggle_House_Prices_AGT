@@ -137,7 +137,7 @@ train <- train[, !names(train) %in% nz]
 test <- test[, !names(test) %in% nz]
 
 
-train <- train[train$GrLivArea < 4000,]
+# train <- train[train$GrLivArea < 4000,]
 
 
 save(train, file = "./files/train1.Rda")

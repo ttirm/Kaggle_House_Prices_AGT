@@ -107,14 +107,14 @@ cat <- data.frame(predict(dum, newdata = cat))
 # Numerics
 #############################################################################################################
 
-num <- data[, sapply(data, is.numeric)]
-names(num)
-num <- num[,!(names(num) %in% c("Id", "MSSubClass", "MoSold", "YrSold", "age", "epoch", "GarageYrBlt", "YearBuilt", "YearRemodAdd"))]
-num <- num[, sapply(num, function(x) {range(x)[2]-range(x)[1]>30})]
-num_col <- sapply(names(num), function(x) paste0(x, "_2"))
-num <- data.frame(sapply(num, function(x) x^2))
-names(num) <- num_col
-data <- cbind(data,num)
+# num <- data[, sapply(data, is.numeric)]
+# names(num)
+# num <- num[,!(names(num) %in% c("Id", "MSSubClass", "MoSold", "YrSold", "age", "epoch", "GarageYrBlt", "YearBuilt", "YearRemodAdd"))]
+# num <- num[, sapply(num, function(x) {range(x)[2]-range(x)[1]>30})]
+# num_col <- sapply(names(num), function(x) paste0(x, "_2"))
+# num <- data.frame(sapply(num, function(x) x^2))
+# names(num) <- num_col
+# data <- cbind(data,num)
 
 
 data$remodeled <- ifelse(data$YearRemodAdd-data$YearBuilt > 0, 1, 0)
