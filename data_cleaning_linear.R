@@ -137,7 +137,18 @@ train <- train[, !names(train) %in% nz]
 test <- test[, !names(test) %in% nz]
 
 
-train <- train[train$GrLivArea < 4000,]
+#train <- train[train$GrLivArea <= 4000,]
+#train <- train[train$LotArea <= 100000,]
+
+# 
+# test[test$GrLivArea > 4000, "GrLivArea"] <- 4000
+# test[test$LotArea > 100000, "LotArea"] <- 100000
+
+# train <- train[-c(633,1325,524,1299,314,965,410,1426, 463),]
+# train <- train[-c(89, 411, 463, 524, 633, 969, 1299, 1325),]
+train <- train[-c(31, 89, 411, 463, 496, 524,589, 633, 711, 969, 971, 1299, 1325, 1433),]
+
+
 
 
 save(train, file = "./files/train1.Rda")

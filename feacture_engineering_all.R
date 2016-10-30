@@ -94,7 +94,7 @@ cat$SaleType[!(cat$SaleType %in% c("New", "WD"))] <- "other"
 cat$SaleCondition[!(cat$SaleCondition %in% c("Abnorml", "Normal", "Partial"))] <- "other"
 # cat$MSSubClass <- factor(data$MSSubClass)
 cat$MoSold <- factor(data$MoSold)
-cat$YrSold <- factor(data$YrSold)
+#cat$YrSold <- factor(data$YrSold)
 
 exc <- names(cat)
 
@@ -109,20 +109,21 @@ cat <- data.frame(predict(dum, newdata = cat))
 
 num <- data[, sapply(data, is.numeric)]
 names(num)
-num <- num[,!(names(num) %in% c("Id", "MSSubClass", "MoSold", "YrSold", "age", "epoch", "GarageYrBlt", "YearBuilt", "YearRemodAdd"))]
-num <- num[, sapply(num, function(x) {range(x)[2]-range(x)[1]>30})]
-
+num <- num[,!(names(num) %in% c("Id", "MSSubClass", "MoSold", "YrSold", "age", "epoch", "GarageYrBlt", 
+                                "YearBuilt", "YearRemodAdd", "SalePrice", "LotArea"))]
+num <- num[, sapply(num, function(x) {range(x)[2]-range(x)[1]>500})]
+# 
 num2 <- num
 num2_col <- sapply(names(num2), function(x) paste0(x, "_2"))
-num2 <- data.frame(sapply(num2, function(x) x^2))
+num2 <- data.frame(sapply(num2, function(x) x^(2)))
 names(num2) <- num2_col
-
+# 
 num3 <- num
-num3_col <- sapply(names(num3), function(x) paste0(x, "_2"))
-num3 <- data.frame(sapply(num3, function(x) x^3))
+num3_col <- sapply(names(num3), function(x) paste0(x, "_3"))
+num3 <- data.frame(sapply(num3, function(x) x^(1/2)))
 names(num3) <- num3_col
-
-
+# 
+# 
 data <- cbind(data,num2)
 data <- cbind(data,num3)
 
@@ -135,26 +136,44 @@ data$garage_age <- data$YrSold-data$GarageYrBlt
 data$epoch <- ifelse(data$YrSold-data$YearBuilt >100, 2,ifelse(data$YrSold-data$YearBuilt >50, 1,0))
 
 
-data$OverallCond <- ifelse(data$OverallCond> 5, 1, ifelse(data$OverallCond< 5, -1,0))
-data$OverallQual <- ifelse((data$OverallQual+data$OverallCond) < 0, 0,(data$OverallQual+data$OverallCond))
+# data$OverallCond <- ifelse(data$OverallCond> 5, 1, ifelse(data$OverallCond< 5, -1,0))
+# #data$OverallQual <- ifelse((data$OverallQual+data$OverallCond) < 0, 0,(data$OverallQual+data$OverallCond))
+# 
+# # data$OverallQual2 <- data$OverallQual^2
+# 
+# data$GarageCond <- ifelse(data$GarageCond> 4, 1, ifelse(data$GarageCond< 4, -1,0))
+# #data$GarageQual <- ifelse((data$GarageQual+data$GarageCond) < 0, 0,(data$GarageQual+data$GarageCond))
+# 
+# 
+# 
+# 
+# data$ExterCond <- ifelse(data$ExterCond> 3, 1, ifelse(data$ExterCond< 3, -1,0))
+# #data$ExterQual <- ifelse((data$ExterQual+data$ExterCond) < 0, 0,(data$ExterQual+data$ExterCond))
+# 
+# 
+# data$Fireplaces <- ifelse(data$Fireplaces > 1, 2, data$Fireplaces) 
 
-data$GarageCond <- ifelse(data$GarageCond> 4, 1, ifelse(data$GarageCond< 4, -1,0))
-data$GarageQual <- ifelse((data$GarageQual+data$GarageCond) < 0, 0,(data$GarageQual+data$GarageCond))
 
 
-data$ExterCond <- ifelse(data$ExterCond> 3, 1, ifelse(data$ExterCond< 3, -1,0))
-data$ExterQual <- ifelse((data$ExterQual+data$ExterCond) < 0, 0,(data$ExterQual+data$ExterCond))
+data$space <-  data$X2ndFlrSF + data$X1stFlrSF
 
-data$Fireplaces <- ifelse(data$Fireplaces > 1, 2, data$Fireplaces) 
+data$sec <- data$X2ndFlrSF/data$X1stFlrSF
 
-data$bathRoomRel <-  data$TotRmsAbvGrd- data$HalfBath+data$FullBath
+data$bath <- data$FullBath+data$HalfBath
 
-data$space <- data$GrLivArea - data$X1stFlrSF -  data$X2ndFlrSF
-    
+data$Bsmtbath <- data$BsmtFullBath + data$BsmtHalfBath
 
+data$totbath <- data$Bsmtbath + data$bath
 
-data <- data[, !(names(data) %in% c("GarageYrBlt", "YearBuilt", "YearRemodAdd", 
-                                    "OverallCond", "GarageCond", "BsmtCond", "ExterCond" ))]
+data$bathRoomRel <-  data$TotRmsAbvGrd- data$totbath
+
+data$LotArea <- log(data$LotArea+1)
+
+data <- data[, !(names(data) %in% c("GarageYrBlt", "YearBuilt", "YearRemodAdd", "BsmtFullBath", "BsmtHalfBath",
+                                    "FullBath", "HalfBath", "X2ndFlrSF", "data$X1stFlrSF"
+                                    #, 
+                                    #"OverallCond", "GarageCond", "BsmtCond", "ExterCond" 
+                                    ))]
 
 
 data <- data <- data[, !(names(data) %in% exc)]
@@ -166,10 +185,11 @@ data <- cbind(data, cat)
 
 train_tot <- data[1:nrow(train),]
 train_tot$SalePrice <- log(y+1)
-train_tot <- train_tot[,-1]
+#train_tot <- train_tot[,-1]
 
 sum(sapply(train_tot, class) != "numeric")
 
 train_tot <- as.data.frame(sapply(train_tot, as.numeric))
-test_tot <- data[(nrow(train)+1):nrow(data),]    
+test_tot <- data[(nrow(train)+1):nrow(data),]
+
 

@@ -5,13 +5,16 @@ library(caret)
 train <- read.csv("./data/train.csv", stringsAsFactors = FALSE)
 test <- read.csv("./data/test.csv", stringsAsFactors = FALSE)
 
+
+
 summary(train)
 str(train)
 
-dim(train)
-log(1)
-
 head(train)
+train$Fence[!is.na(train$Fence)] <- 1
+train$Fence[is.na(train$Fence)] <- 0
+test$Fence[!is.na(test$Fence)] <- 1
+test$Fence[is.na(test$Fence)] <- 0
 
 nas <- apply(train, 2,function(x)sum(is.na(x))/length(x))
 nam <- as.character(names(train))
@@ -31,23 +34,18 @@ train <- unique(train)
 
 # NAs treatment
 ###########################################
-head(train$FireplaceQu)
-head(train$Fireplaces)
 train$FireplaceQu[is.na(train$FireplaceQu)] <- "None"
 
 test$FireplaceQu[is.na(test$FireplaceQu)] <- "None"
 
-
-head(train$LotFrontage,20)
 summary(train$LotFrontage)
-head(train$LotArea,20)
+
 train$LotFrontage[is.na(train$LotFrontage)] <- mean(train$LotFrontage, na.rm = TRUE)
 
 test$LotFrontage[is.na(test$LotFrontage)] <- mean(test$LotFrontage, na.rm = TRUE)
 
 
-head(train$MasVnrType,50)
-head(train$MasVnrArea,50)
+
 train$MasVnrType[is.na(train$MasVnrType)] <- "None"
 train$MasVnrArea[is.na(train$MasVnrArea)] <- 0
 
@@ -78,6 +76,7 @@ test$Electrical[is.na(test$Electrical)] <- "SBrkr"
 
 
 head(train$GarageType)
+test[is.na(test$GarageType),]
 train$GarageType[is.na(train$GarageType)] <- "None"
 test$GarageType[is.na(test$GarageType)] <- "None"
 head(train$GarageCars)
