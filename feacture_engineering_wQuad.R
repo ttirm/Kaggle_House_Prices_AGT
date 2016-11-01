@@ -101,6 +101,9 @@ exc <- names(cat)
 dum <- dummyVars(~., data = cat)
 cat <- data.frame(predict(dum, newdata = cat))
 
+res <- sapply(cat, function(x){sum(x != 0)/nrow(cat)})
+cat <- cat[,names(res[res > 0.01])]
+
 # nz <- colnames(cat[,nearZeroVar(cat)])
 # cat <- cat[, !names(cat) %in% nz]
 
@@ -134,6 +137,10 @@ data$age <- ifelse(data$YearRemodAdd-data$YearBuilt > 0,
 data$garage_age <- data$YrSold-data$GarageYrBlt
 
 data$epoch <- ifelse(data$YrSold-data$YearBuilt >100, 2,ifelse(data$YrSold-data$YearBuilt >50, 1,0))
+
+data$lot_side <- data$LotArea/data$LotFrontage
+
+
 
 
 # data$OverallCond <- ifelse(data$OverallCond> 5, 1, ifelse(data$OverallCond< 5, -1,0))

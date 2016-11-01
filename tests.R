@@ -78,3 +78,7 @@ write.csv(Submit, "./predictions/submission_stack1.csv", row.names=FALSE)
 xgb_pred <- predict(Training, newdata=xgb_test)
 Submit <- data.frame(Id= test$Id, SalePrice= (exp(xgb_pred)-1))
 write.csv(Submit, "./predictions/submission_xgboost2.csv", row.names=FALSE)
+
+
+sum(train_tot$MoSold.11 != 0)
+sapply(train_tot, function(x){sum(x != 0)/nrow(train_tot)})

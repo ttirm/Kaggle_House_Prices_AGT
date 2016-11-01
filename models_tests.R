@@ -1,18 +1,27 @@
 
 set.seed(1904)
 
-train_id <- train_tot[,1]
-train_tot <- train_tot[,-1]
+train_id <- train_tot[,"Id"]
+train_tot <- train_tot[,!(names(train_tot) %in% c("Id"))]
 
 control <- trainControl(method="repeatedcv", number=10, repeats=3)
 metric <- "RMSE"
-fit2 <-train(SalePrice~., data = train_tot, method = "rf", metric=metric, trControl=control, preProcess=c("center","scale","pca"))
+fit2 <-train(SalePrice~., data = train_tot, method = "rf", metric=metric, trControl=control, preProcess=c("center","scale"))
+
+fit7 <-train(SalePrice~., data = train_tot, method = "rlm", metric=metric, trControl=control, preProcess=c("center","scale", "pca"))
+
+fit8 <-train(SalePrice~., data = train_tot, method = "pls", metric=metric, trControl=control, preProcess=c("center","scale"))
+
+fit_t5 <-train(SalePrice~., data = train_tot, method = "svmLinear", metric=metric, trControl=control, preProcess=c("center","scale"))
+
+fit_t3 <- train(SalePrice~., data = train_tot, method = "lm", trControl=control, preProcess=c("center","scale","pca"))
+
+fit_t1 <- train(SalePrice~., data = train_tot, method = "kknn", trControl=control, preProcess=c("center","scale"))
+
+fit_t4 <- train(SalePrice~., data = train_tot, method = "extraTrees", trControl=control, preProcess=c("center","scale"))
 
 
-fit_t5 <-train(SalePrice~., data = train_tot, method = "svmRadial", metric=metric, trControl=control, preProcess=c("center","scale"))
 
-fit_t3 <- train(SalePrice~., data = train_tot, method = "lm", preProcess=c("center","scale","pca"), 
-                trControl = trainControl(method = "cv"))
 summary(fit_t3)
 
 lm_pred_t <- predict(fit_t3, train_tot)
@@ -62,7 +71,7 @@ xgb_train <- xgb.DMatrix(model.matrix(~., data = train_x),
 #All
 ##############################################################################################################
 history <- xgb.cv(data = xgb_train, nround=800, nthread = 6, nfold = 10, metrics=list("rmse"),
-                  max.depth =6, eta = 0.03, gamma = 0.01, colsample_bytree = 0.2,  objective = "reg:linear")
+                  max.depth =4, eta = 0.03, gamma = 0.01, colsample_bytree = 0.1,  objective = "reg:linear")
 
 #Linear
 ##############################################################################################################
@@ -74,10 +83,10 @@ param<-list(
     objective = "reg:linear",
     eval_metric = "rmse",
     booster = "gbtree",
-    max_depth = 6,
+    max_depth = 4,
     eta = 0.03,
     gamma = 0.01, 
-    colsample_bytree = 0.2,
+    colsample_bytree = 0.1,
     min_child_weight=1
 )
 
@@ -174,16 +183,25 @@ names(model_lasso)
 
 model_lasso$modelInfo
 coef(model_lasso$finalModel)
-coef(model_lasso$finalModel, model_lasso$bestTune[,2])
+aux <- coef(model_lasso$finalModel, model_lasso$bestTune[,2])
+aux <- as.matrix(aux)
+aux <- data.frame(name = names(aux[,1]), val = aux[, 1], val2 = aux[, 1]^2)
+
+aux1 <- aux[abs(aux$val2) >0,]
+aux1 <- head(aux1[order(aux1$val2, decreasing = TRUE),"name"],101)
+
+aux1 <- aux1[-1]
+train_tot1 <- train_tot[,aux1]
+train_tot1$SalePrice <- train_tot$SalePrice
 
 plot(residuals(model_lasso))
 
 
 mean(resid(model_lasso))
 
-aux <- data.frame(id = train_id,res = residuals(model_lasso), y = model_lasso$trainingData )
+aux <- data.frame(id = train_id,res = residuals(model_lasso))
 
-aux[abs(aux$res) >0.35, ]$id
+aux[abs(aux$res) >0.4,"id"]
 length(model_lasso$pred)
 lasso_pred_t <- predict(model_lasso,newdata= train_tot)
 
@@ -204,6 +222,7 @@ model_nnet <- train(SalePrice ~ .,
                     data = train_tot,
                     method="nnet",
                     metric="RMSE",
+                    tuneLength=5,
                     maximize=FALSE,
                     trControl=CARET.TRAIN.CTRL)
 
@@ -224,7 +243,7 @@ write.csv(Submit, "./predictions/submission_lasso1.csv", row.names=FALSE)
 trainIndex <- createDataPartition(train_tot$SalePrice, p = .9,
                                   list = FALSE, 
                                   times = 1)
-pre
+
 train_x <- train_tot[trainIndex, !(names(train_tot) %in% c("Id", "SalePrice"))]
 y_train <- train_tot$SalePrice[trainIndex]
 
@@ -426,7 +445,7 @@ ggplot(data = train_tot, aes(x = log(LotArea), y = SalePrice))+
                               formula=y ~ poly(x, 1, raw=TRUE),colour="red")
 train_tot$GarageCars
 
-ggplot(data = train_tot, aes(x = SaleCondition, y = SalePrice))+
+ggplot(data = train_tot, aes(x = Fireplaces, y = SalePrice))+
     geom_point()+ stat_smooth(method="lm", se=TRUE, fill=NA,
                               formula=y ~ poly(x, 3, raw=TRUE),colour="blue")
 
@@ -451,8 +470,9 @@ fit_t4 <- lm(SalePrice~., data = train_tot1)
 summary(fit_t4)
 plot(fit_t4)
 
+names(train_tot)
 
-ggplot(data = train, aes(x = SaleCondition, y = SalePrice))+
-    geom_boxplot()+geom_point()
+ggplot(data = train_tot, aes(x =GarageQual, y = SalePrice))+
+    geom_point()
 
 

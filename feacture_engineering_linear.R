@@ -101,6 +101,9 @@ exc <- names(cat)
 dum <- dummyVars(~., data = cat)
 cat <- data.frame(predict(dum, newdata = cat))
 
+res <- sapply(cat, function(x){sum(x != 0)/nrow(cat)})
+cat <- cat[,names(res[res > 0.01])]
+
 # nz <- colnames(cat[,nearZeroVar(cat)])
 # cat <- cat[, !names(cat) %in% nz]
 
@@ -156,6 +159,7 @@ data <- cbind(data, cat)
 train_tot <- data[1:nrow(train),]
 train_tot$SalePrice <- log(y+1)
 train_tot <- train_tot[,-1]
+train_tot$Id <- train$Id
 
 sum(sapply(train_tot, class) != "numeric")
 

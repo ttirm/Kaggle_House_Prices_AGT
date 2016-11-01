@@ -1,4 +1,3 @@
-
 library(glmnet)
 library(plyr)
 
@@ -17,7 +16,7 @@ train_folds <- function(fold, dataset, xgb){
     if (xgb == TRUE){
         train_x <- trainset[, !(names(trainset) %in% c("Id", "SalePrice"))]
         y_train <-  trainset$SalePrice
-
+        
         xgb_train <- xgb.DMatrix(model.matrix(~., data = train_x),
                                  label=y_train, missing=NA)
         
@@ -43,7 +42,7 @@ train_folds <- function(fold, dataset, xgb){
         
         
         xgb_test_cv <- xgb.DMatrix(model.matrix(~., data = testset),
-                                missing=NA)
+                                   missing=NA)
         yhat <- predict(fit, newdata=xgb_test_cv)        
         score <- RMSE(y,yhat)
         
@@ -60,9 +59,9 @@ train_folds <- function(fold, dataset, xgb){
                      tuneGrid=CARET.TUNE.GRID,
                      preProcess= pre,
                      metric="RMSE",
-#                      tuneLength=tun,
-#                      linout=lin,
-#                      trace=tra,
+                     #                      tuneLength=tun,
+                     #                      linout=lin,
+                     #                      trace=tra,
                      maximize=FALSE)
         
         print(3)
@@ -73,7 +72,7 @@ train_folds <- function(fold, dataset, xgb){
         score <- RMSE(y,yhat)
         print(score)
     }
-
+    
     ans <- list(model=fit,
                 score=score,
                 predictions=data.frame(ID=id,yhat=yhat,y=y),
@@ -140,6 +139,45 @@ tra <- NULL
 met <- "lm"
 
 lm_set <- lapply(folds, train_folds,train_tot, FALSE)
+
+
+#pls Model
+##############################################################################################################
+CARET.TUNE.GRID <-  NULL
+
+# model specific training parameter
+CARET.TRAIN.CTRL <- trainControl(method="repeatedcv",
+                                 number=5,
+                                 repeats=10,
+                                 verboseIter=FALSE)
+
+pre <- c("center","scale")
+tun <- NULL
+lin <- NULL
+tra <- NULL
+met <- "pls"
+
+pls_set <- lapply(folds, train_folds,train_tot, FALSE)
+
+
+#svmLinear Model
+##############################################################################################################
+CARET.TUNE.GRID <-  NULL
+
+# model specific training parameter
+CARET.TRAIN.CTRL <- trainControl(method="repeatedcv",
+                                 number=5,
+                                 repeats=10,
+                                 verboseIter=FALSE)
+
+pre <- c("center","scale")
+tun <- NULL
+lin <- NULL
+tra <- NULL
+met <- "svmLinear"
+
+svm_set <- lapply(folds, train_folds,train_tot, FALSE)
+
 
 #gbm Model
 ##############################################################################################################
@@ -209,10 +247,11 @@ ridge_yhat <- do.call(c,lapply(ridge_set,function(x){x$predictions$yhat}))
 y <- do.call(c,lapply(ridge_set,function(x){x$predictions$y}))
 lasso_yhat <- do.call(c,lapply(lasso_set,function(x){x$predictions$yhat}))
 lm_yhat <- do.call(c,lapply(lm_set,function(x){x$predictions$yhat}))
-# gbm_yhat <- do.call(c,lapply(gbm_set,function(x){x$predictions$yhat}))
+pls_yhat <- do.call(c,lapply(pls_set,function(x){x$predictions$yhat}))
+svm_yhat <- do.call(c,lapply(svm_set,function(x){x$predictions$yhat}))
 xgboost_yhat <- do.call(c,lapply(xgboost_set,function(x){x$predictions$yhat}))
 
-data_l1 <- data.frame(ridge = ridge_yhat, lasso = lasso_yhat, lm = lm_yhat, xgboost = xgboost_yhat, SalePrice = y)
+data_l1 <- data.frame(ridge = ridge_yhat, lasso = lasso_yhat, lm = lm_yhat, pls = pls_yhat, svm = svm_yhat, xgboost = xgboost_yhat, SalePrice = y)
 
 CARET.TUNE.GRID <-  NULL
 
@@ -241,10 +280,11 @@ ridge_test <- apply(do.call(cbind,lapply(ridge_set,function(x){x$test_prediction
 id <- do.call(c,lapply(ridge_set,function(x){x$test_predictions$ID}))
 lasso_test <- apply(do.call(cbind,lapply(lasso_set,function(x){x$test_predictions$yhat})),1,mean)
 lm_test <- apply(do.call(cbind,lapply(lm_set,function(x){x$test_predictions$yhat})),1,mean)
-# gbm_test <- apply(do.call(cbind,lapply(gbm_set,function(x){x$test_predictions$yhat})),1,mean)
+pls_test <- apply(do.call(cbind,lapply(pls_set,function(x){x$test_predictions$yhat})),1,mean)
+svm_test <- apply(do.call(cbind,lapply(svm_set,function(x){x$test_predictions$yhat})),1,mean)
 xgboost_test <- apply(do.call(cbind,lapply(xgboost_set,function(x){x$test_predictions$yhat})),1,mean)
 
-test_l1 <- data.frame(ridge = ridge_test, lasso = lasso_test, lm = lm_test, xgboost = xgboost_test)
+test_l1 <- data.frame(ridge = ridge_test, lasso = lasso_test, lm = lm_test, pls = pls_test, svm = svm_test, xgboost = xgboost_test)
 
 pred <- predict(model_nnet,newdata= test_l1)
 
@@ -252,4 +292,3 @@ pred <- predict(model_nnet,newdata= test_l1)
 res <- (exp(pred)-1)
 Submit<-data.frame(Id= test$Id, SalePrice= res)
 write.csv(Submit, "./predictions/submission_stack.csv", row.names=FALSE)
-

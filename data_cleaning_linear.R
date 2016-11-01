@@ -5,14 +5,6 @@ library(caret)
 train <- read.csv("./data/train.csv", stringsAsFactors = FALSE)
 test <- read.csv("./data/test.csv", stringsAsFactors = FALSE)
 
-summary(train)
-str(train)
-
-dim(train)
-log(1)
-
-head(train)
-
 nas <- apply(train, 2,function(x)sum(is.na(x))/length(x))
 nam <- as.character(names(train))
 length(nam)
@@ -38,16 +30,11 @@ train$FireplaceQu[is.na(train$FireplaceQu)] <- "None"
 test$FireplaceQu[is.na(test$FireplaceQu)] <- "None"
 
 
-head(train$LotFrontage,20)
-summary(train$LotFrontage)
-head(train$LotArea,20)
 train$LotFrontage[is.na(train$LotFrontage)] <- mean(train$LotFrontage, na.rm = TRUE)
 
 test$LotFrontage[is.na(test$LotFrontage)] <- mean(test$LotFrontage, na.rm = TRUE)
 
 
-head(train$MasVnrType,50)
-head(train$MasVnrArea,50)
 train$MasVnrType[is.na(train$MasVnrType)] <- "None"
 train$MasVnrArea[is.na(train$MasVnrArea)] <- 0
 
@@ -130,24 +117,14 @@ table(test$OverallQual, test$KitchenQual, exclude = NULL)
 test[is.na(test$KitchenQual), "KitchenQual"] <-  "TA"
 
 
-
-
 nz <- colnames(train[,nearZeroVar(train)])
 train <- train[, !names(train) %in% nz]
 test <- test[, !names(test) %in% nz]
 
-
-#train <- train[train$GrLivArea <= 4000,]
-#train <- train[train$LotArea <= 100000,]
-
-# 
-# test[test$GrLivArea > 4000, "GrLivArea"] <- 4000
-# test[test$LotArea > 100000, "LotArea"] <- 100000
-
 # train <- train[-c(633,1325,524,1299,314,965,410,1426, 463),]
 # train <- train[-c(89, 411, 463, 524, 633, 969, 1299, 1325),]
 train <- train[-c(31, 89, 411, 463, 496, 524,589, 633, 711, 969, 971, 1299, 1325, 1433),]
-
+#train <- train[-c(31, 411, 463, 496, 524, 633, 689, 71, 813, 917, 969, 971, 1182, 1299, 1325, 1433),]
 
 
 
